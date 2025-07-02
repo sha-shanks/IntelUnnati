@@ -1,0 +1,10 @@
+[
+    {
+        "role": "user",
+        "content": "can you explain basic trignomerty"
+    },
+    {
+        "role": "assistant",
+        "content": "I received: 'can you explain basic trignomerty'. I am a dummy bot."
+    }
+]
