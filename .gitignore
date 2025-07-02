@@ -208,3 +208,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Other files
+user_data
+venv
+excess
+summary.json
