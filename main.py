@@ -14,6 +14,20 @@ import streamlit_chatbox
 from openvino import Core
 from PIL import Image
 
+from src.retriever_chain import RetrieverChain
+
+
+@st.cache_resource
+def setting_up_retrieval():
+    """
+    Returns an instance of RetrieverChain.
+    This function is cached by Streamlit to avoid re-initializing the model on each rerun.
+    """
+    return RetrieverChain()
+
+
+bot = setting_up_retrieval()
+
 # Configure page
 st.set_page_config(page_title="Profile Selection", layout="wide")
 
@@ -138,14 +152,14 @@ st.markdown(
 
 def attention_from_model():
     face_cascade = cv2.CascadeClassifier(
-        "haarcascade_files/haarcascade_frontalface_default.xml"
+        "./src/haarcascade_files/haarcascade_frontalface_default.xml"
     )
-    eye_cascade = cv2.CascadeClassifier("haarcascade_files/haarcascade_eye.xml")
+    eye_cascade = cv2.CascadeClassifier("./src/haarcascade_files/haarcascade_eye.xml")
 
     use_live_video = True
 
     # OpenVINO model (IR format: .xml + .bin)
-    ov_model_path = "model/emotion_detection_model.xml"
+    ov_model_path = "./src/model/emotion_detection_model.xml"
 
     # Load OpenVINO model
     core = Core()
@@ -576,6 +590,11 @@ elif st.session_state["current_page"] == "main_app":
             st.session_state["active_tab"] = "chatbot_unnati"
             st.rerun()
 
+        if st.button("Start Attention Tracker", key="start_attention", use_container_width=True):
+            print("starting the attention")
+            st.session_state["active_tab"] = "gets_report"
+            st.rerun()
+
         if st.button("⚙️ Settings", key="settings_tab", use_container_width=True):
             st.session_state["active_tab"] = "settings"
             st.rerun()
@@ -583,12 +602,7 @@ elif st.session_state["current_page"] == "main_app":
         if st.button("🧑‍💻 About", key="about_tab", use_container_width=True):
             st.session_state["active_tab"] = "about"
             st.rerun()
-        if st.button(
-            "Start Attention Tracker", key="start_attention", use_container_width=True
-        ):
-            print("starting the attention")
-            st.session_state["active_tab"] = "gets_report"
-            st.rerun()
+        
         st.markdown("---")
 
         if st.button("← Back to Profiles", use_container_width=True):
@@ -598,6 +612,19 @@ elif st.session_state["current_page"] == "main_app":
 
     # Main content
     if st.session_state["active_tab"] == "chatbot_unnati":
+        # --- Get User Avatar ---
+        current_profile_info = next(
+            (
+                p
+                for p in st.session_state["profiles"]
+                if p["name"] == st.session_state["selected_profile"]
+            ),
+            None,
+        )
+        user_avatar_b64 = None
+        if current_profile_info and current_profile_info["image"]:
+            user_avatar_b64 = image_to_base64(current_profile_info["image"])
+
         # --- Chat History Management Functions ---
         def get_profile_chat_dir(profile_name):
             # Sanitize profile name to create a valid directory name
@@ -709,7 +736,7 @@ elif st.session_state["current_page"] == "main_app":
         with chat_col:
             # This container holds the chat messages and will be scrollable
             with st.container(height=400):
-                chat_box = streamlit_chatbox.ChatBox()
+                chat_box = streamlit_chatbox.ChatBox(user_avatar=user_avatar_b64)
                 # Display the chat history
                 for msg in st.session_state.chat_messages:
                     if msg["role"] == "user":
@@ -719,12 +746,12 @@ elif st.session_state["current_page"] == "main_app":
 
             # Placeholder prompts are now at the bottom of the chat column
             placeholders = [
-                "Class 10 Mathematics",
-                "Class 10 Science",
-                "Class 10 History",
-                "Class 10 Geography",
-                "Class 10 Civics",
-                "Class 10 Economics",
+                "Geography",
+                "History",
+                "Mathematics",
+                "Science",
+                "Civics",
+                "Economics",
             ]
 
             # Callback to update prompt from dropdown
@@ -751,10 +778,19 @@ elif st.session_state["current_page"] == "main_app":
                 {"role": "user", "content": user_query}
             )
 
-            # Dummy bot response
+            # Get response from the bot
             with st.spinner("Unnati is thinking..."):
-                time.sleep(1)  # Simulate work
-                bot_response = f"I received: '{user_query}'. I am a dummy bot."
+                subject = st.session_state.prompt_selector
+                # Define the subjects that have a data source.
+                supported_subjects = ["Geography", "History"]
+
+                # if not subject:
+                #     bot_response = "Please select a subject before asking a question."
+                if subject not in supported_subjects:
+                    bot_response = f"I'm sorry, I don't have information on '{subject}' yet. Please select one of the supported subjects: {', '.join(supported_subjects)}."
+                else:
+                    # Call the retriever to get the response
+                    bot_response = bot.retriever(user_query, subject)
 
             # Add bot response to state
             st.session_state.chat_messages.append(

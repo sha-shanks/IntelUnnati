@@ -7,3 +7,27 @@ streamlit-chatbox==1.1.8
 simplejson==3.19.2
 opencv-python
 openvino
+
+# LangChain Core
+langchain
+langchain-core
+langchain-community
+
+# Google (PaLM) Integration
+langchain-google-genai
+google-generativeai
+
+# Environment Variable Management
+python-dotenv
+
+# Other
+tiktoken
+
+# Hugging Face Integration
+langchain-huggingface
+transformers
+huggingface-hub
+
+# Pinecone Integration
+langchain-pinecone
+pinecone
