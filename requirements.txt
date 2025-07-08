@@ -31,3 +31,7 @@ huggingface-hub
 # Pinecone Integration
 langchain-pinecone
 pinecone
+
+# Youtube DL
+yt-dlp
+

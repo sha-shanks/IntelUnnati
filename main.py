@@ -13,6 +13,7 @@ import streamlit as st
 import streamlit_chatbox
 from openvino import Core
 from PIL import Image
+from yt_dlp import YoutubeDL
 
 from src.retriever_chain import RetrieverChain
 
@@ -150,7 +151,16 @@ st.markdown(
 )
 
 
-def attention_from_model():
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        b64_str = base64.b64encode(img_file.read()).decode()
+    return f"data:image/jpeg;base64,{b64_str}"
+
+
+icon_b64 = get_base64_image("icons/ico.jpg")
+
+
+def attention_from_model(duration):
     face_cascade = cv2.CascadeClassifier(
         "./src/haarcascade_files/haarcascade_frontalface_default.xml"
     )
@@ -175,7 +185,7 @@ def attention_from_model():
     emotions_map = {emotion: 0 for emotion in EMOTIONS}
 
     # Setup display
-    cv2.namedWindow("Student Attention Detector")
+    # cv2.namedWindow("Student Attention Detector")
     count = 0
 
     # Video input
@@ -188,7 +198,7 @@ def attention_from_model():
     attentive_count = 0
     not_attentive_count = 0
     start_time = time.time()
-    max_duration = 10
+    max_duration = duration  # milli second to second convesion
     while max_duration > time.time() - start_time:
         try:
             ret, frame = cap.read()
@@ -278,18 +288,18 @@ def attention_from_model():
                         2,
                     )
 
-            cv2.imshow("Student Attention Detector", frame)
-            cv2.imshow("Face Emotion Probabilities using AI", canvas)
+            # cv2.imshow("Student Attention Detector", frame)
+            # cv2.imshow("Face Emotion Probabilities using AI", canvas)
 
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
+            # if cv2.waitKey(1) & 0xFF == ord("q"):
+            #     break
 
         except Exception as e:
             print("Error:", e)
             break
 
     cap.release()
-    cv2.destroyAllWindows()
+    # cv2.destroyAllWindows()
 
     summary = {
         "emotions_map": emotions_map,
@@ -446,6 +456,24 @@ def add_profile(name, image):
     return False
 
 
+def convert_to_text_and_pass():
+    print("starting transcript")
+    aai.settings.api_key = "ea19bdf126234ed28a4bf9941616c4eb"
+
+    # audio_file = "./local_file.mp3"
+
+    audio_file = "supersimple.mp3"
+
+    config = aai.TranscriptionConfig(speech_model=aai.SpeechModel.best)
+
+    transcript = aai.Transcriber(config=config).transcribe(audio_file)
+
+    if transcript.status == "error":
+        raise RuntimeError(f"Transcription failed: {transcript.error}")
+
+    return transcript.text
+
+
 # Main application logic
 if st.session_state["current_page"] == "profile_selection":
     # Profile Selection Page
@@ -590,7 +618,9 @@ elif st.session_state["current_page"] == "main_app":
             st.session_state["active_tab"] = "chatbot_unnati"
             st.rerun()
 
-        if st.button("Start Attention Tracker", key="start_attention", use_container_width=True):
+        if st.button(
+            "Start Attention Tracker", key="start_attention", use_container_width=True
+        ):
             print("starting the attention")
             st.session_state["active_tab"] = "gets_report"
             st.rerun()
@@ -602,7 +632,7 @@ elif st.session_state["current_page"] == "main_app":
         if st.button("🧑‍💻 About", key="about_tab", use_container_width=True):
             st.session_state["active_tab"] = "about"
             st.rerun()
-        
+
         st.markdown("---")
 
         if st.button("← Back to Profiles", use_container_width=True):
@@ -698,7 +728,11 @@ elif st.session_state["current_page"] == "main_app":
 
         # --- UI Implementation ---
         st.markdown(
-            "<h1><center>🤖 Chat with Unnati</center></h1>", unsafe_allow_html=True
+            f'<div style="text-align:center;"><img src="{icon_b64}" width="128"></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<h1><center>Chat with Unnati</center></h1>", unsafe_allow_html=True
         )
 
         history_col, chat_col = st.columns([1, 3])
@@ -834,25 +868,56 @@ elif st.session_state["current_page"] == "main_app":
             unsafe_allow_html=True,
         )
     elif st.session_state["active_tab"] == "gets_report":
-        print("hello")
-        summary = attention_from_model()
-        print(summary)
-        attentive_count = summary["attentive_count"]
-        not_attentive_count = summary["not_attentive_count"]
-        total = attentive_count + not_attentive_count
-        emotions_map = summary["emotions_map"]
+        uploaded_file = st.file_uploader("Choose a video to watch")
+        title = None
+        title = st.text_input("Enter a youtube url")
 
-        st.markdown(
-            f"""
-### 📝 **Student Attention Detection Report**
+        duration = None
+        if title != "":
+            st.video(title)
+            with YoutubeDL() as ydl:
+                info = ydl.extract_info(title, download=False)
+                duration = int(info["duration"])
+        video = None
+        temp = None
 
-**Attention Summary**
-- **Attentive Frames:** `{attentive_count}`
-- **Not Attentive Frames:** `{not_attentive_count}`
-- **Attention Rate (%):** `{(attentive_count / total) * 100:.2f}`
+        if uploaded_file is not None:
+            import tempfile
 
-**Emotion Distribution**
-"""
-        )
-        st.bar_chart(emotions_map)
-        st.session_state["report"] = None
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
+                temp_video.write(uploaded_file.read())
+                temp = temp_video.name
+
+            st.video(temp)
+
+            from moviepy import VideoFileClip
+
+            clip = VideoFileClip(temp)
+            duration = clip.duration
+            print(duration)
+
+        if duration is not None:
+            if st.button("Start"):
+                summary = attention_from_model(duration)
+                print(summary)
+                attentive_count = summary["attentive_count"]
+                not_attentive_count = summary["not_attentive_count"]
+                total = attentive_count + not_attentive_count
+                emotions_map = summary["emotions_map"]
+                if total > 0:
+                    st.markdown(
+                        f"""
+                    ### 📝 **Student Attention Detection Report**
+
+                    **Attention Summary**
+                    - **Attentive Frames:** `{attentive_count}`
+                    - **Not Attentive Frames:** `{not_attentive_count}`
+                    - **Attention Rate (%):** `{(attentive_count / total) * 100:.2f}`
+
+                    **Emotion Distribution**
+                    """
+                    )
+                else:
+                    print("zero")
+                st.bar_chart(emotions_map)
+                st.session_state["report"] = None
