@@ -44,8 +44,11 @@ IntelUnnati/
 │   │   ├── emotion_detection_model.bin
 │   │   └── emotion_detection_model.xml
 │   └── vector_store/
+│       └── db_civics/
+│       └── db_economics/
 │       ├── db_geography/
 │       ├── db_history/
+│       └── db_mathematics/
 │       └── db_science/
 └── utils/
     └── pinecone_create_index.py
