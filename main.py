@@ -134,7 +134,7 @@ st.markdown(
         padding: 30px;
         border-radius: 10px;
         color: white;
-        min-height: 200px;
+        min-height: 150px;
     }
     
     .user-header {
@@ -158,6 +158,7 @@ def get_base64_image(image_path):
 
 
 icon_b64 = get_base64_image("icons/ico.jpg")
+intelLogo_b64 = get_base64_image("icons/intel_logo.png")
 
 
 def attention_from_model(duration):
@@ -456,24 +457,6 @@ def add_profile(name, image):
     return False
 
 
-def convert_to_text_and_pass():
-    print("starting transcript")
-    aai.settings.api_key = "ea19bdf126234ed28a4bf9941616c4eb"
-
-    # audio_file = "./local_file.mp3"
-
-    audio_file = "supersimple.mp3"
-
-    config = aai.TranscriptionConfig(speech_model=aai.SpeechModel.best)
-
-    transcript = aai.Transcriber(config=config).transcribe(audio_file)
-
-    if transcript.status == "error":
-        raise RuntimeError(f"Transcription failed: {transcript.error}")
-
-    return transcript.text
-
-
 # Main application logic
 if st.session_state["current_page"] == "profile_selection":
     # Profile Selection Page
@@ -619,13 +602,13 @@ elif st.session_state["current_page"] == "main_app":
             st.rerun()
 
         if st.button(
-            "Start Attention Tracker", key="start_attention", use_container_width=True
+            "🪟 Attention Tracker", key="start_attention", use_container_width=True
         ):
             print("starting the attention")
             st.session_state["active_tab"] = "gets_report"
             st.rerun()
 
-        if st.button("⚙️ Settings", key="settings_tab", use_container_width=True):
+        if st.button("📊 Account details", key="settings_tab", use_container_width=True):
             st.session_state["active_tab"] = "settings"
             st.rerun()
 
@@ -788,25 +771,14 @@ elif st.session_state["current_page"] == "main_app":
                 "Economics",
             ]
 
-            # Callback to update prompt from dropdown
-            def set_prompt_from_dropdown():
-                st.session_state.selected_prompt = st.session_state.prompt_selector
-
             st.selectbox(
                 "Select the subject:",
                 placeholders,
                 key="prompt_selector",
-                on_change=set_prompt_from_dropdown,
             )
 
         # Handle user input (from chat_input and dropdown) - MOVED THIS OUTSIDE of chat_col for pinning, DONT TOUCHHH!
-        user_query = None
-        if prompt := st.chat_input("Your message to Unnati..."):
-            user_query = prompt
-        elif st.session_state.selected_prompt:
-            user_query = st.session_state.selected_prompt
-
-        if user_query:
+        if user_query := st.chat_input("Your message to Unnati..."):
             # Add user message to state and display it
             st.session_state.chat_messages.append(
                 {"role": "user", "content": user_query}
@@ -839,21 +811,55 @@ elif st.session_state["current_page"] == "main_app":
             )
 
             # Clear the selected prompt and rerun to update UI
-            st.session_state.selected_prompt = ""
             st.rerun()
 
     elif st.session_state["active_tab"] == "settings":
+        def get_profile_chat_dir(profile_name):
+            # Sanitize profile name to create a valid directory name
+            sanitized_name = (
+                "".join(c for c in profile_name if c.isalnum() or c in (" ", "_"))
+                .rstrip()
+                .replace(" ", "_")
+            )
+            chat_dir = Path(f"user_data/{sanitized_name}_chats")
+            chat_dir.mkdir(exist_ok=True)
+            return chat_dir
+
+        def list_chat_histories(profile_name):
+            chat_dir = get_profile_chat_dir(profile_name)
+            # List and sort files by modification time (newest first)
+            return sorted(
+                list(chat_dir.glob("*.json")),
+                key=lambda f: f.stat().st_mtime,
+                reverse=True,
+            )
         st.markdown(
             """
         <div class="content-area">
-            <h1>⚙️ Settings</h1>
-            <p>Manage your preferences and account settings.</p>
-            <h3>Account Settings</h3>
+            <h1>📊 Account details</h1>
+            <p>Monitor your activity and manage your preferences.</p>
+            <h3>Account details</h3>
             <div style="background-color: #333; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <p><strong>Profile Name:</strong> {}</p>
+                <p><strong>Number of Chats:</strong> {}</p>
+                <p><strong>Profile Picture:</strong> {}</p>
             </div>
         </div>
-        """.format(st.session_state["selected_profile"]),
+        """.format(
+                st.session_state["selected_profile"],
+                len(list_chat_histories(st.session_state["selected_profile"])),
+                "Yes"
+                if next(
+                    (
+                        p["image"]
+                        for p in st.session_state["profiles"]
+                        if p["name"] == st.session_state["selected_profile"]
+                    ),
+                    None,
+                )
+                is not None
+                else "No",
+            ),
             unsafe_allow_html=True,
         )
 
@@ -863,8 +869,19 @@ elif st.session_state["current_page"] == "main_app":
         <div class="about-area">
             <h1>🧑‍💻 About</h1>
             <p>Made with 💖 for Intel Unnati</p>
+            <h5>Developed by:</h5>
+            <ul>Shashank S Nayak</ul>
+            <ul>Srinivas S Kulal</ul>
+            <br></br>
+            <h6>Under the guidance of</h6>
+            <ul>Dr. Surekha Kamath</ul>
+            <ul>and Intel Unnati Team</ul>
         </div>
         """,
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f'<br></br><div style="text-align:center;"><img src="{intelLogo_b64}" width="128"></div>',
             unsafe_allow_html=True,
         )
     elif st.session_state["active_tab"] == "gets_report":
