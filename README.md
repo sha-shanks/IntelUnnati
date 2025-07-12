@@ -9,6 +9,10 @@ Unnati is a comprehensive chatbot application designed to assist Class 10 CBSE s
 - **Emotion Detection**: The application uses your webcam to detect your emotions, allowing for a more engaging and responsive interaction.
 - **User-Friendly Interface**: A simple and intuitive graphical user interface (GUI) built with Tkinter makes the application easy to use.
 
+## Submission Files
+[Report - Google Drive](https://drive.google.com/file/d/18BJJsYyGO_fQZx9Acyk--3cjZEi9UUPK/view?usp=sharing) 
+[Demo Video - YouTube](https://youtu.be/5H1ulgyYNnQ)
+
 ## Tech Stack
 
 - **Core Application**: Python
